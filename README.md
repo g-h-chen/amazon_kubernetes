@@ -87,8 +87,10 @@ Users should debug on aws7/8/9/10. These nodes can be connected via ssh and thus
    git clone xxx and cd xxx
 
    # download data
-   # configure the download destination beforehand
    bash download_data.sh # prepare by yourself
+   # -> alternatively, you can copy files from aws to kubernetes pods:
+   bash cp_to_pod.sh $local_file_or_dir $pod_file_or_dir # similar to cp -r $src $dst
+
 
    # launch training
    bash train.sh # your training script
