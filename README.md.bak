@@ -1,0 +1,211 @@
+# Interactive Kubernetes Workstation Setup
+
+This setup provides permanent interactive pods that act like traditional compute nodes, making it easier for lab members to run training jobs without learning Kubernetes.
+
+## Architecture Overview
+
+- **1 Permanent Pod**: Single pod runs continuously with all GPU allocation (debugging mode)
+- **GPU Distribution**: 
+  - Pod 0: All 8 GPUs (0,1,2,3,4,5,6,7)
+- **Persistent Storage**: 
+  - `/home/efs/` - Your shared data and code (FSx storage)
+  - `/home/conda_env/` - Conda environments (persisted to FSx)
+- **Base Image**: PyTorch 2.8.0 with CUDA 12.8 and cuDNN 9
+
+## Quick Start
+
+### 1. Deploy the Workstation Pods
+
+```bash
+cd /home/efs/connect_to_cluster/launch_interactive_pods
+./deploy.sh deploy
+```
+
+### 2. Check Pod Status
+
+```bash
+./deploy.sh status
+```
+
+### 3. Connect to a Pod
+
+```bash
+# Connect to pod 0 (All 8 GPUs)
+./deploy.sh connect 0
+```
+
+## User Workflow
+
+### First Time Setup (per user)
+
+1. **Connect to any available pod**:
+   ```bash
+   ./deploy.sh connect 0  # or connect 1
+   ```
+
+2. **Create your conda environment**:
+   ```bash
+   # Inside the pod
+   conda create -n myproject python=3.10
+   conda activate myproject
+   conda install pytorch torchvision torchaudio pytorch-cuda=12.1 -c pytorch -c nvidia
+   # Install other packages as needed...
+   ```
+
+3. **Verify GPU access**:
+   ```bash
+   nvidia-smi  # Should show your allocated GPUs
+   python -c "import torch; print(torch.cuda.device_count())"
+   ```
+
+### Regular Usage
+
+1. **Check which pods are available**:
+   ```bash
+   ./deploy.sh status
+   ```
+
+2. **Connect to the pod**:
+   ```bash
+   ./deploy.sh connect 0
+   ```
+
+3. **Activate your environment and work**:
+   ```bash
+   conda activate myproject
+   cd /home/efs/your-project
+   python train.py  # or whatever you need to run
+   ```
+
+4. **Your work persists** - conda environments, data, and code are all saved to FSx storage
+
+## Best Practices
+
+### Resource Etiquette
+- **Check if pod is idle** before starting intensive training
+- **Use `htop` or `nvidia-smi`** to check current usage
+- **Communicate with lab mates** about long-running jobs
+- **Use screen/tmux** for long training sessions so you can disconnect safely
+
+### Storage Guidelines
+- **Code & Data**: Store in `/home/efs/` (shared, versioned with git)
+- **Conda Environments**: Created in `/home/conda_env/` (persistent per user)
+- **Temporary Files**: Use `/tmp/` (gets cleaned up)
+
+### Training Jobs
+```bash
+# Example training session
+conda activate myproject
+cd /home/efs/my-project
+
+# Use screen for long jobs
+screen -S training
+python train.py --epochs 100 --batch-size 32
+# Ctrl+A, D to detach from screen
+# screen -r training to reattach later
+```
+
+## Management Commands
+
+### Deployment Management
+```bash
+# Deploy pods
+./deploy.sh deploy
+
+# Check status
+./deploy.sh status
+
+# Show GPU allocation
+./deploy.sh list-gpus
+
+# Connect to specific pod
+./deploy.sh connect <pod_number>
+
+# Remove all pods (use carefully!)
+./deploy.sh delete
+```
+
+### Pod Information
+```bash
+# Get detailed pod info
+kubectl get pods -l app=interactive-workstation -o wide
+
+# Check resource usage
+kubectl top pods -l app=interactive-workstation
+
+# View pod logs
+kubectl logs interactive-workstation-0
+kubectl logs interactive-workstation-1
+```
+
+## Troubleshooting
+
+### Pod Not Starting
+```bash
+# Check pod events
+kubectl describe pod interactive-workstation-0
+kubectl describe pod interactive-workstation-1
+
+# Check if GPUs are available on nodes
+kubectl describe nodes
+```
+
+### Conda Issues
+```bash
+# If conda isn't working, it might still be installing
+# Check the installation log:
+kubectl logs interactive-workstation-0
+
+# Manually source conda:
+source /home/conda_env/miniconda3/etc/profile.d/conda.sh
+export PATH="/home/conda_env/miniconda3/bin:$PATH"
+```
+
+### Storage Issues
+```bash
+# Check if FSx is mounted properly
+df -h /home/efs
+df -h /home/conda_env
+
+# List available PVCs
+kubectl get pvc
+```
+
+### GPU Issues
+```bash
+# Check GPU allocation
+nvidia-smi
+
+# Verify CUDA is working
+python -c "import torch; print(torch.cuda.is_available())"
+```
+
+## Advanced Usage
+
+### Custom Docker Images
+If you need additional software, you can:
+1. Create a custom Docker image based on the current one
+2. Update the `image:` field in `interactive-pods.yaml`
+3. Redeploy with `./deploy.sh delete && ./deploy.sh deploy`
+
+### Scaling
+To add more pods or change GPU allocation:
+1. Edit `interactive-pods.yaml`
+2. Modify `replicas:` and `nvidia.com/gpu:` values
+3. Update the connection script accordingly
+4. Redeploy
+
+### Monitoring
+Consider setting up monitoring dashboards to track:
+- GPU utilization per pod
+- Memory usage
+- Active training jobs
+- Pod availability
+
+## Support
+
+If you encounter issues:
+1. Check this README for troubleshooting steps
+2. Use `./deploy.sh status` to check pod health
+3. Contact your cluster administrator
+4. Check Kubernetes events: `kubectl get events --sort-by=.metadata.creationTimestamp`

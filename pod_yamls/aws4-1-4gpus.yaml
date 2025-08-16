@@ -1,0 +1,48 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: aws4-1-4gpus
+  labels:
+    app: gpu-workstation
+    node-idx: "4"
+    gpu-count: "4"
+spec:
+  nodeSelector:
+    kubernetes.io/hostname: "ip-172-31-138-171.us-west-2.compute.internal"
+  containers:
+  - name: workstation
+    image: hchen403/cuda128-miniconda:py312
+    imagePullPolicy: Always
+    command: ["/bin/bash"]
+    args: ["-c", "sleep infinity"]
+    resources:
+      requests:
+        memory: "500Gi"
+        cpu: "45"
+        nvidia.com/gpu: "4"
+      limits:
+        memory: "500Gi"
+        cpu: "47"
+        nvidia.com/gpu: "4"
+    volumeMounts:
+    - name: efs-storage
+      mountPath: /home
+    - name: dshm
+      mountPath: /dev/shm
+    env:
+    - name: CUDA_VISIBLE_DEVICES
+      value: "4,5,6,7"  # Second 4 GPUs
+    - name: PYTHONPATH
+      value: "/home/efs/connect_to_cluster"
+    workingDir: /home/efs/
+    tty: true
+    stdin: true
+  volumes:
+  - name: efs-storage
+    persistentVolumeClaim:
+      claimName: fsx
+  - name: dshm
+    emptyDir:
+      medium: Memory
+      sizeLimit: 64Gi
+  restartPolicy: Never
