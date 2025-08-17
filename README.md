@@ -37,7 +37,7 @@ or downloading data from huggingface/github inside the pods (see below).
 ## Launch training
 
 ### First Time Setup (per user)
-0. **Connect to aws-7/8/9/10**:
+0. **Connect to aws-7/10**:
 
    Refer to [this](https://www.notion.so/250519-AWS-A100-1f815839118a80cca416ebccc23cbb7a) tutorial. Send request to visit.
 
