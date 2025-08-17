@@ -26,7 +26,13 @@ Now we have two sets of compute, one for debugging (aws7/8/9/10) and one for run
 ## Debug
 Users should debug on aws7/8/9/10. These nodes can be connected via ssh and thus can be opened in vscode. Once finished debugging, you should move to kubernetes pods for training.
 
+You can move your data from aws to pod by using
+```bash
+# Copy files/dirs from aws to kubernetes pods:
+bash cp_to_pod.sh $local_file_or_dir $pod_file_or_dir # similar to cp -r $src $dst
+```
 
+or downloading data from huggingface/github inside the pods (see below).
 
 ## Launch training
 
@@ -84,16 +90,21 @@ Users should debug on aws7/8/9/10. These nodes can be connected via ssh and thus
    # make your own dir
    mkdir -p /home/efs/$myname && cd /home/efs/$myname
 
-   # clone code
+   # -----------------
+   # clone code      |
+   # -----------------
    git clone xxx and cd xxx
 
-   # download data
-   bash download_data.sh # prepare by yourself
-   # -> alternatively, you can copy files from aws to kubernetes pods:
-   bash cp_to_pod.sh $local_file_or_dir $pod_file_or_dir # similar to cp -r $src $dst
+   # -----------------
+   # download data   |
+   # -----------------
+   ## prepare scripts by yourself
+   ## skip this step if you choose to cp data from aws
 
 
-   # launch training
+   # -----------------
+   # launch training |
+   # -----------------
    bash train.sh # your training script
    ```
 
