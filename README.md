@@ -24,7 +24,7 @@ Now we have two sets of compute, one for debugging (aws7/8/9/10) and one for run
 **They are completely separate in storage**.  
 
 ## Debug
-Users should debug on aws7/8/9/10. These nodes can be connected via ssh and thus can be opened in vscode. Once finished debugging, codes and data should be uploaded to github and huggingface.
+Users should debug on aws7/8/9/10. These nodes can be connected via ssh and thus can be opened in vscode. Once finished debugging, you should move to kubernetes pods for training.
 
 
 
@@ -33,7 +33,7 @@ Users should debug on aws7/8/9/10. These nodes can be connected via ssh and thus
 ### First Time Setup (per user)
 0. **Connect to aws-7/8/9/10**:
 
-   Refer to this tutorial. 
+   Refer to [this](https://www.notion.so/250519-AWS-A100-1f815839118a80cca416ebccc23cbb7a) tutorial. Send request to visit.
 
 1. **Connect to an available pod**:
    
@@ -66,7 +66,7 @@ Users should debug on aws7/8/9/10. These nodes can be connected via ssh and thus
    **DO NOT use `conda create -n $envname`**.
    ```bash
    # Inside the pod
-   $envname="myname"
+   $envname="user_envname" # e.g. hardy_llamafactory 
    conda create --prefix /home/efs/conda_envs/$envname python=3.12.0
    conda activate $envname
    # conda install pytorch torchvision torchaudio pytorch-cuda=12.8 -c pytorch -c nvidia

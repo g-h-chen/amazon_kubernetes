@@ -72,6 +72,7 @@ fi
 
 echo "✅ Pod $POD_NAME is ready!"
 echo "💡 Tip: Use 'nvidia-smi' to check GPU status"
+echo "💡 Tip: Your conda env is in /home/efs/conda_envs/"
 echo "💡 Tip: Use 'conda activate <env_name>' to switch conda environments"
 echo "💡 Tip: Your data is in /home/efs/"
 echo ""
