@@ -64,7 +64,7 @@ Users should debug on aws7/8/9/10. These nodes can be connected via ssh and thus
 
 2. **Create your conda environment**:
 
-   **DO NOT use `conda create -n $envname`**.
+   **DO NOT use `conda create -n $envname`. Environments under `/opt/conda` will be deleted**.
    ```bash
    # Inside the pod
    $envname="user_envname" # e.g. hardy_llamafactory 
