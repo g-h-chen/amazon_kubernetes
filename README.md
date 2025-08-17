@@ -51,9 +51,10 @@ Users should debug on aws7/8/9/10. These nodes can be connected via ssh and thus
    If you see:
    ```
    ubuntu@ip-172-31-6-254:/home/efs/kubernetes/amazon_kubernetes$ bash connect.sh aws4-0
-   🔗 Connecting to first 4-GPU pod: aws4-0-4gpus
-   ✅ Pod aws4-0-4gpus is ready!
+   🔗 Connecting to 8-GPU pod: aws0-0-8gpus
+   ✅ Pod aws0-0-8gpus is ready!
    💡 Tip: Use 'nvidia-smi' to check GPU status
+   💡 Tip: Your conda env is in /home/efs/conda_envs/
    💡 Tip: Use 'conda activate <env_name>' to switch conda environments
    💡 Tip: Your data is in /home/efs/
 
