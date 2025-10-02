@@ -1,0 +1,143 @@
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: ml-critical
+value: 1000000000
+globalDefault: false
+description: "Keep ML workstation always running with high priority."
+
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: ws-pdb
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels: { app: ws }
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ws
+  labels: { app: ws }
+spec:
+  clusterIP: None                   # Headless Service，给 ws-0.ws / ws-1.ws 稳定 DNS
+  selector: { app: ws }
+  ports:
+    - name: rdzv
+      port: 29500
+      targetPort: 29500
+    - name: ssh
+      port: 22
+      targetPort: 22
+
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: ws
+spec:
+  serviceName: "ws"
+  replicas: 2
+  selector:
+    matchLabels: { app: ws }
+  template:
+    metadata:
+      labels:
+        app: ws
+      annotations:
+        cluster-autoscaler.kubernetes.io/safe-to-evict: "false"
+    spec:
+      priorityClassName: ml-critical
+      restartPolicy: Always
+
+      # 仅调度到你的两台节点
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: kubernetes.io/hostname
+                    operator: In
+                    values:
+                      - "ip-172-31-141-194.us-west-2.compute.internal"
+                      - "ip-172-31-150-162.us-west-2.compute.internal"
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels: { app: ws }
+              topologyKey: "kubernetes.io/hostname"
+
+      # 如果你的 GPU 节点有污点（常见），加这个容忍
+      tolerations:
+        - key: "nvidia.com/gpu"
+          operator: "Exists"
+          effect: "NoSchedule"
+
+      containers:
+        - name: workstation
+          image: 763104351884.dkr.ecr.us-west-2.amazonaws.com/pytorch-training:2.7.1-gpu-py312-cu128-ubuntu22.04-ec2
+          imagePullPolicy: IfNotPresent
+          workingDir: /home/efs/
+          command: ["/bin/bash","-lc"]
+          args:
+            - |
+              set -e
+              # 安装并启动 sshd（容器基于 Ubuntu 22.04）
+              apt-get update -y && apt-get install -y --no-install-recommends openssh-server tmux htop iproute2 iputils-ping vim
+              mkdir -p /var/run/sshd /root/.ssh
+              cp /ssh/authorized_keys /root/.ssh/authorized_keys
+              chmod 700 /root/.ssh && chmod 600 /root/.ssh/authorized_keys
+              echo "PasswordAuthentication no" >> /etc/ssh/sshd_config
+              /usr/sbin/sshd -D &
+
+              # 为 EFA/NCCL 做保守设置（集群没装 EFA 也不影响）
+              export NCCL_DEBUG=WARN
+              export FI_EFA_USE_HUGE_PAGE=0
+              export FI_EFA_FORK_SAFE=1
+              # rendezvous 默认端口
+              export MASTER_PORT=29500
+
+              # 永久驻留
+              sleep infinity
+          ports:
+            - { name: ssh,  containerPort: 22 }
+            - { name: rdzv, containerPort: 29500 }
+          env:
+            - { name: PYTHONWARNINGS, value: "ignore" }
+            - name: PYTHONPATH
+              value: "/home/efs/connect_to_cluster"
+          resources:
+            requests:
+              cpu: "80"                # p4de 有 96 vCPU，给 80 作为 request
+              memory: "800Gi"          # p4de 内存 1152 GiB；为系统与 kube 预留空间
+              nvidia.com/gpu: 8
+              # 如已安装 EFA device plugin，可开启下一行；否则删除
+              # vpc.amazonaws.com/efa: 1
+            limits:
+              cpu: "90"
+              memory: "1000Gi"
+              nvidia.com/gpu: 8
+              # vpc.amazonaws.com/efa: 1
+          volumeMounts:
+            - { name: dshm, mountPath: /dev/shm }
+            - name: efs-storage
+              mountPath: /home
+            - { name: ssh-auth, mountPath: /ssh, readOnly: true }
+          securityContext:
+            runAsUser: 0
+            runAsGroup: 0
+          tty: true
+          stdin: true
+
+      volumes:
+        - name: dshm
+          emptyDir: { medium: Memory, sizeLimit: "512Gi" }   # /dev/shm 扩大（官方支持方式）
+        - name: efs-storage
+          persistentVolumeClaim:
+            claimName: fsx
+        - name: ssh-auth
+          secret:
+            secretName: ssh-auth

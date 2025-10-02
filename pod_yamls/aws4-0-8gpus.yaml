@@ -1,14 +1,14 @@
 apiVersion: v1
 kind: Pod
 metadata:
-  name: aws2-0-8gpus
+  name: aws4-0-8gpus
   labels:
     app: gpu-workstation
-    node-idx: "2"
+    node-idx: "4"
     gpu-count: "8"
 spec:
   nodeSelector:
-    kubernetes.io/hostname: "ip-172-31-137-252.us-west-2.compute.internal"
+    kubernetes.io/hostname: "ip-172-31-138-243.us-west-2.compute.internal"
   containers:
   - name: workstation
     image: hchen403/cuda128-miniconda:py312

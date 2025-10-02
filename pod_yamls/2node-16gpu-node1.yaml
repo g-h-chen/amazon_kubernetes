@@ -1,17 +1,18 @@
 apiVersion: v1
 kind: Pod
 metadata:
-  name: aws2-0-8gpus
+  name: 2node-16gpu-node1
   labels:
     app: gpu-workstation
-    node-idx: "2"
+    cluster: "2node-16gpu"
+    node-idx: "1"
     gpu-count: "8"
 spec:
   nodeSelector:
-    kubernetes.io/hostname: "ip-172-31-137-252.us-west-2.compute.internal"
+    kubernetes.io/hostname: "ip-172-31-130-216.us-west-2.compute.internal"  # 你需要替换为实际的节点hostname
   containers:
   - name: workstation
-    image: hchen403/cuda128-miniconda:py312
+    image: pytorch/pytorch:2.1.0-cuda12.1-cudnn8-devel  # 或者使用最新版本
     imagePullPolicy: Always
     command: ["/bin/bash"]
     args: ["-c", "sleep infinity"]
@@ -34,9 +35,21 @@ spec:
       value: "0,1,2,3,4,5,6,7"
     - name: PYTHONPATH
       value: "/home/efs/connect_to_cluster"
+    - name: NODE_RANK
+      value: "1"
+    - name: WORLD_SIZE
+      value: "2"
+    - name: MASTER_ADDR
+      value: "2node-16gpu-node0"  # 主节点地址
+    - name: MASTER_PORT
+      value: "29500"
     workingDir: /home/efs/
     tty: true
     stdin: true
+    ports:
+    - containerPort: 29500
+      name: master-port
+      protocol: TCP
   volumes:
   - name: efs-storage
     persistentVolumeClaim:
@@ -44,5 +57,7 @@ spec:
   - name: dshm
     emptyDir:
       medium: Memory
-      sizeLimit: 64Gi
+      sizeLimit: 128Gi  # 增加共享内存以支持分布式训练
   restartPolicy: Never
+  hostNetwork: false  # 使用Pod网络，便于服务发现
+  dnsPolicy: ClusterFirst

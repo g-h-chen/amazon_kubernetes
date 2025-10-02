@@ -1,41 +1,38 @@
 #!/bin/bash
 
 # Script to copy files from local directory to a pod directory
-# Usage: bash cp_to_pod.sh <local_dir> <pod_dir>
-# Example: bash cp_to_pod.sh /home/efs/hardychen/workspaces /home/efs/hardychen/workspaces
+# Usage: bash cp_to_pod.sh <pod_spec> <local_path> <pod_path>
+# Example: bash cp_to_pod.sh aws0-0 ./my_data /home/efs/data
 
 set -e  # Exit on any error
 
 # Check arguments
 if [ $# -eq 0 ] || [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
-    echo "📋 Usage: bash cp_to_pod.sh <local_path> <pod_path>"
+    echo "📋 Usage: bash cp_to_pod.sh <pod_spec> <local_path> <pod_path>"
     echo ""
     echo "📁 Arguments:"
+    echo "  pod_spec   - Identifier for the target pod (e.g., aws0-0, aws6-1)"
     echo "  local_path - Local file or directory to copy from"
     echo "  pod_path   - Destination path in the pod"
     echo ""
     echo "💡 Examples:"
-    echo "  # Copy a directory"
-    echo "  bash cp_to_pod.sh /home/efs/hardychen/workspaces /home/efs/hardychen/workspaces"
-    echo "  bash cp_to_pod.sh ./my_project /home/efs/my_project"
+    echo "  # Copy a directory to pod aws0-0"
+    echo "  bash cp_to_pod.sh aws0-0 ./my_project /home/efs/my_project"
     echo ""
-    echo "  # Copy a file"
-    echo "  bash cp_to_pod.sh ./train.py /home/efs/train.py"
-    echo "  bash cp_to_pod.sh /home/efs/data/model.pt /home/efs/models/model.pt"
-    echo ""
-    echo "🔍 The script will automatically find an available pod to copy to."
-    echo "🔍 Supports both files and directories automatically."
+    echo "  # Copy a file to pod aws6-1"
+    echo "  bash cp_to_pod.sh aws6-1 ./train.py /home/efs/train.py"
     exit 0
 fi
 
-if [ $# -ne 2 ]; then
-    echo "❌ Error: Expected 2 arguments, got $#"
+if [ $# -ne 3 ]; then
+    echo "❌ Error: Expected 3 arguments, got $#"
     echo "Use 'bash cp_to_pod.sh --help' for usage information"
     exit 1
 fi
 
-LOCAL_PATH="$1"
-POD_PATH="$2"
+POD_SPEC="$1"
+LOCAL_PATH="$2"
+POD_PATH="$3"
 
 # Validate local path (can be file or directory)
 if [ ! -e "$LOCAL_PATH" ]; then
@@ -63,56 +60,56 @@ else
 fi
 echo ""
 
-# Define all available pods
-PODS=(
-    "aws0-0"  # 8-GPU pod
-    "aws1-0"  # 8-GPU pod
-    "aws2-0"  # 8-GPU pod
-    "aws3-0"  # 8-GPU pod
-    "aws4-0"  # 4-GPU pod
-    "aws4-1"  # 4-GPU pod
-    "aws5-0"  # 4-GPU pod
-    "aws5-1"  # 4-GPU pod
-)
-
-# Find an available pod
-AVAILABLE_POD=""
-for pod in "${PODS[@]}"; do
-    # echo "🔍 Checking pod: $pod"
-    
-    # Check if pod exists and is running
-    if kubectl get pods | grep -q "$pod.*Running"; then
-        # echo "✅ Pod $pod is available and running"
-        AVAILABLE_POD="$pod"
-        break
-    else
-        echo ""
-        # echo "❌ Pod $pod is not available or not running"
-    fi
-done
-
-if [ -z "$AVAILABLE_POD" ]; then
-    echo "❌ Error: No available pods found. Please check pod status with:"
-    echo "   bash check_usage.sh"
-    exit 1
-fi
-
-echo ""
-echo "🚀 Using pod: $AVAILABLE_POD"
-echo ""
-
-# Get the full pod name
-if [[ "$AVAILABLE_POD" == "aws"[0-3]"-0" ]]; then
-    FULL_POD_NAME="${AVAILABLE_POD}-8gpus"
-elif [[ "$AVAILABLE_POD" == "aws"[4-5]"-"[0-1] ]]; then
-    FULL_POD_NAME="${AVAILABLE_POD}-4gpus"
+# Parse the pod identifier to get the full pod name
+if [[ $POD_SPEC =~ ^aws([0-9]+)-([0-9]+)$ ]]; then
+    NODE_IDX=${BASH_REMATCH[1]}
+    POD_NUM=${BASH_REMATCH[2]}
 else
-    echo "❌ Error: Invalid pod format: $AVAILABLE_POD"
+    echo "Error: Invalid pod_spec format. Use 'aws<node>-<pod_num>'"
+    echo "Example: aws0-0, aws6-1"
     exit 1
 fi
 
-# echo "📋 Full pod name: $FULL_POD_NAME"
+# Determine full pod name based on the deployment logic
+if [ $NODE_IDX -le 5 ]; then
+    # Nodes 0-5 have 8-GPU pods
+    if [ $POD_NUM -eq 0 ]; then
+        FULL_POD_NAME="aws${NODE_IDX}-0-8gpus"
+    else
+        echo "Error: Node ${NODE_IDX} only has one pod (use aws${NODE_IDX}-0)"
+        exit 1
+    fi
+elif [ $NODE_IDX -le 7 ]; then
+    # Nodes 6-7 have 4-GPU pods
+    if [ $POD_NUM -eq 0 ]; then
+        FULL_POD_NAME="aws${NODE_IDX}-0-4gpus"
+    elif [ $POD_NUM -eq 1 ]; then
+        FULL_POD_NAME="aws${NODE_IDX}-1-4gpus"
+    else
+        echo "Error: Invalid pod number for node ${NODE_IDX}. Use 0 or 1."
+        exit 1
+    fi
+else
+    echo "Error: Node ${NODE_IDX} is not configured for GPU pods (valid nodes are 0-7)"
+    exit 1
+fi
+
+echo "🚀 Targeting pod: $FULL_POD_NAME"
 echo ""
+
+# Check if pod exists and is running
+if ! kubectl get pod "$FULL_POD_NAME" >/dev/null 2>&1; then
+    echo "❌ Error: Pod $FULL_POD_NAME not found"
+    echo "Available pods:"
+    kubectl get pods -l app=gpu-workstation
+    exit 1
+fi
+
+POD_STATUS=$(kubectl get pod "$FULL_POD_NAME" -o jsonpath='{.status.phase}')
+if [ "$POD_STATUS" != "Running" ]; then
+    echo "❌ Error: Pod $FULL_POD_NAME is not running (status: $POD_STATUS)"
+    exit 1
+fi
 
 # Handle destination directory creation
 if [ "$IS_DIRECTORY" = true ]; then

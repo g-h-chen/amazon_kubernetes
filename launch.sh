@@ -1,34 +1,47 @@
 #!/bin/bash
 
 # Launch script for GPU workstation pods
-# Usage: bash launch.sh <node_idx> <ngpu>
+# Usage: bash launch.sh <pod_spec> <ngpu>
+# Example: bash launch.sh 0-0 8
+# Example: bash launch.sh 6-1 4
 
 set -e
 
 if [ $# -ne 2 ]; then
-    echo "Usage: $0 <node_idx> <ngpu>"
-    echo "Example: $0 0 8    # Launch 8-GPU pod on node 0"
-    echo "Example: $0 4 4    # Launch 4-GPU pod on node 4"
+    echo "Usage: $0 <pod_spec> <ngpu>"
+    echo "Example: $0 0-0 8    # Launch 8-GPU pod on node 0"
+    echo "Example: $0 6-1 4    # Launch 4-GPU pod on node 6 (second pod)"
     exit 1
 fi
 
-NODE_IDX=$1
+POD_SPEC=$1
 NGPU=$2
 
-# Node mapping (0-7)
+# Node mapping (0-9)
 NODES=(
-    "ip-172-31-129-163.us-west-2.compute.internal"
-    "ip-172-31-130-216.us-west-2.compute.internal"
     "ip-172-31-131-175.us-west-2.compute.internal"
+    "ip-172-31-136-213.us-west-2.compute.internal"
     "ip-172-31-137-252.us-west-2.compute.internal"
     "ip-172-31-138-171.us-west-2.compute.internal"
     "ip-172-31-138-243.us-west-2.compute.internal"
-    "ip-172-31-141-194.us-west-2.compute.internal"
-    "ip-172-31-150-162.us-west-2.compute.internal"
+    "ip-172-31-150-2.us-west-2.compute.internal"
+    "ip-172-31-129-163.us-west-2.compute.internal" 
+    "ip-172-31-130-216.us-west-2.compute.internal" 
+    "ip-172-31-141-194.us-west-2.compute.internal" # reserved
+    "ip-172-31-150-162.us-west-2.compute.internal" # reserved
 )
 
-if [ $NODE_IDX -lt 0 ] || [ $NODE_IDX -gt 7 ]; then
-    echo "Error: node_idx must be between 0 and 7"
+# Parse pod_spec
+if [[ ! $POD_SPEC =~ ^([0-9]+)-([0-9]+)$ ]]; then
+    echo "Error: Invalid pod_spec format. Expected <node_idx>-<pod_idx>"
+    exit 1
+fi
+
+NODE_IDX=${BASH_REMATCH[1]}
+POD_IDX=${BASH_REMATCH[2]}
+
+if [ $NODE_IDX -lt 0 ] || [ $NODE_IDX -ge ${#NODES[@]} ]; then
+    echo "Error: node_idx must be between 0 and $((${#NODES[@]} - 1))"
     exit 1
 fi
 
@@ -40,15 +53,19 @@ fi
 NODE_NAME=${NODES[$NODE_IDX]}
 echo "🚀 Launching $NGPU-GPU pod on node $NODE_IDX ($NODE_NAME)"
 
-# Determine pod name based on node and GPU count
+# Determine pod name and GPU devices
+POD_NAME="aws${NODE_IDX}-${POD_IDX}-${NGPU}gpus"
 if [ $NGPU -eq 8 ]; then
-    POD_NAME="aws${NODE_IDX}-0-8gpus"
     GPU_DEVICES="0,1,2,3,4,5,6,7"
-else
-    # For 4-GPU pods, we need to determine which 4 GPUs to use
-    # This will be handled by the YAML template
-    POD_NAME="aws${NODE_IDX}-0-4gpus"
-    GPU_DEVICES="0,1,2,3"
+elif [ $NGPU -eq 4 ]; then
+    if [ $POD_IDX -eq 0 ]; then
+        GPU_DEVICES="0,1,2,3"
+    elif [ $POD_IDX -eq 1 ]; then
+        GPU_DEVICES="4,5,6,7"
+    else
+        echo "Error: Invalid pod_idx for 4-GPU pods. Must be 0 or 1."
+        exit 1
+    fi
 fi
 
 # Create pod YAML
@@ -122,11 +139,7 @@ kubectl wait --for=condition=ready pod/${POD_NAME} --timeout=300s
 echo "✅ Pod ${POD_NAME} is ready!"
 echo ""
 echo "🔗 Connect to the pod:"
-if [ $NGPU -eq 8 ]; then
-    echo "  bash connect.sh aws${NODE_IDX}-0"
-else
-    echo "  bash connect.sh aws${NODE_IDX}-0"
-fi
+echo "  bash connect.sh aws${NODE_IDX}-${POD_IDX}"
 echo ""
 echo "📊 Check GPU usage:"
 echo "  bash check_usage.sh"
