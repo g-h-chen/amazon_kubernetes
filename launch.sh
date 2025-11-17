@@ -17,18 +17,15 @@ fi
 POD_SPEC=$1
 NGPU=$2
 
-# Node mapping (0-9)
+# Node mapping (0-7)
 NODES=(
+    "ip-172-31-129-163.us-west-2.compute.internal"
+    "ip-172-31-130-216.us-west-2.compute.internal"
     "ip-172-31-131-175.us-west-2.compute.internal"
     "ip-172-31-136-213.us-west-2.compute.internal"
-    "ip-172-31-137-252.us-west-2.compute.internal"
-    "ip-172-31-138-171.us-west-2.compute.internal"
-    "ip-172-31-138-243.us-west-2.compute.internal"
+    "ip-172-31-144-249.us-west-2.compute.internal"
     "ip-172-31-150-2.us-west-2.compute.internal"
-    "ip-172-31-129-163.us-west-2.compute.internal" 
-    "ip-172-31-130-216.us-west-2.compute.internal" 
-    "ip-172-31-141-194.us-west-2.compute.internal" # reserved
-    "ip-172-31-150-162.us-west-2.compute.internal" # reserved
+    "ip-172-31-159-22.us-west-2.compute.internal"
 )
 
 # Parse pod_spec
@@ -45,16 +42,35 @@ if [ $NODE_IDX -lt 0 ] || [ $NODE_IDX -ge ${#NODES[@]} ]; then
     exit 1
 fi
 
-if [ $NGPU -ne 4 ] && [ $NGPU -ne 8 ]; then
-    echo "Error: ngpu must be 4 or 8"
-    exit 1
+# Validate NGPU and POD_IDX based on NODE_IDX
+LAST_NODE_IDX=$((${#NODES[@]} - 1))
+if [ $NODE_IDX -eq $LAST_NODE_IDX ]; then
+    # Last node is a 4-GPU node
+    if [ $NGPU -ne 4 ]; then
+        echo "Error: Node $NODE_IDX only supports 4-GPU pods."
+        exit 1
+    fi
+    if [ $POD_IDX -ne 0 ] && [ $POD_IDX -ne 1 ]; then
+        echo "Error: For 4-GPU pods on node $NODE_IDX, pod_idx must be 0 or 1."
+        exit 1
+    fi
+else
+    # Other nodes are 8-GPU nodes
+    if [ $NGPU -ne 8 ]; then
+        echo "Error: Node $NODE_IDX only supports 8-GPU pods."
+        exit 1
+    fi
+    if [ $POD_IDX -ne 0 ]; then
+        echo "Error: For 8-GPU pods on node $NODE_IDX, pod_idx must be 0."
+        exit 1
+    fi
 fi
 
 NODE_NAME=${NODES[$NODE_IDX]}
 echo "🚀 Launching $NGPU-GPU pod on node $NODE_IDX ($NODE_NAME)"
 
 # Determine pod name and GPU devices
-POD_NAME="aws${NODE_IDX}-${POD_IDX}-${NGPU}gpus"
+POD_NAME="pod${NODE_IDX}-${POD_IDX}"
 if [ $NGPU -eq 8 ]; then
     GPU_DEVICES="0,1,2,3,4,5,6,7"
 elif [ $NGPU -eq 4 ]; then
@@ -116,7 +132,7 @@ spec:
   - name: dshm
     emptyDir:
       medium: Memory
-      sizeLimit: 64Gi
+      sizeLimit: 256Gi
   restartPolicy: Never
 EOF
 
@@ -139,7 +155,7 @@ kubectl wait --for=condition=ready pod/${POD_NAME} --timeout=300s
 echo "✅ Pod ${POD_NAME} is ready!"
 echo ""
 echo "🔗 Connect to the pod:"
-echo "  bash connect.sh aws${NODE_IDX}-${POD_IDX}"
+echo "  bash connect.sh pod${NODE_IDX}-${POD_IDX}"
 echo ""
 echo "📊 Check GPU usage:"
 echo "  bash check_usage.sh"

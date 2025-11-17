@@ -1,14 +1,14 @@
 apiVersion: v1
 kind: Pod
 metadata:
-  name: aws5-0-8gpus
+  name: pod3-0
   labels:
     app: gpu-workstation
-    node-idx: "5"
+    node-idx: "3"
     gpu-count: "8"
 spec:
   nodeSelector:
-    kubernetes.io/hostname: "ip-172-31-150-2.us-west-2.compute.internal"
+    kubernetes.io/hostname: "ip-172-31-136-213.us-west-2.compute.internal"
   containers:
   - name: workstation
     image: hchen403/cuda128-miniconda:py312
@@ -44,5 +44,5 @@ spec:
   - name: dshm
     emptyDir:
       medium: Memory
-      sizeLimit: 64Gi
+      sizeLimit: 256Gi
   restartPolicy: Never

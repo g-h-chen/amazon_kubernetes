@@ -21,6 +21,9 @@ if [ $# -eq 0 ] || [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
     echo ""
     echo "  # Copy a file to pod aws6-1"
     echo "  bash cp_to_pod.sh aws6-1 ./train.py /home/efs/train.py"
+    echo ""
+    echo "  # Copy to a reserved node"
+    echo "  bash cp_to_pod.sh aws8-0 ./model.pth /home/efs/models/"
     exit 0
 fi
 
@@ -89,8 +92,16 @@ elif [ $NODE_IDX -le 7 ]; then
         echo "Error: Invalid pod number for node ${NODE_IDX}. Use 0 or 1."
         exit 1
     fi
+elif [ $NODE_IDX -le 9 ]; then
+    # Nodes 8-9 are reserved 8-GPU pods
+    if [ $POD_NUM -eq 0 ]; then
+        FULL_POD_NAME="aws${NODE_IDX}-0-8gpus"
+    else
+        echo "Error: Node ${NODE_IDX} only has one pod (use aws${NODE_IDX}-0)"
+        exit 1
+    fi
 else
-    echo "Error: Node ${NODE_IDX} is not configured for GPU pods (valid nodes are 0-7)"
+    echo "Error: Node ${NODE_IDX} is not configured for GPU pods (valid nodes are 0-9)"
     exit 1
 fi
 
