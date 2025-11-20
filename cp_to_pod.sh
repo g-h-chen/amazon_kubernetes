@@ -2,7 +2,7 @@
 
 # Script to copy files from local directory to a pod directory
 # Usage: bash cp_to_pod.sh <pod_spec> <local_path> <pod_path>
-# Example: bash cp_to_pod.sh aws0-0 ./my_data /home/efs/data
+# Example: bash cp_to_pod.sh pod0-0 ./my_data /home/efs/data
 
 set -e  # Exit on any error
 
@@ -11,19 +11,17 @@ if [ $# -eq 0 ] || [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
     echo "📋 Usage: bash cp_to_pod.sh <pod_spec> <local_path> <pod_path>"
     echo ""
     echo "📁 Arguments:"
-    echo "  pod_spec   - Identifier for the target pod (e.g., aws0-0, aws6-1)"
+    echo "  pod_spec   - Identifier for the target pod (e.g., pod0-0, pod6-1)"
     echo "  local_path - Local file or directory to copy from"
     echo "  pod_path   - Destination path in the pod"
     echo ""
     echo "💡 Examples:"
-    echo "  # Copy a directory to pod aws0-0"
-    echo "  bash cp_to_pod.sh aws0-0 ./my_project /home/efs/my_project"
+    echo "  # Copy a directory to pod pod0-0"
+    echo "  bash cp_to_pod.sh pod0-0 ./my_project /home/efs/my_project"
     echo ""
-    echo "  # Copy a file to pod aws6-1"
-    echo "  bash cp_to_pod.sh aws6-1 ./train.py /home/efs/train.py"
+    echo "  # Copy a file to pod pod6-1"
+    echo "  bash cp_to_pod.sh pod6-1 ./train.py /home/efs/train.py"
     echo ""
-    echo "  # Copy to a reserved node"
-    echo "  bash cp_to_pod.sh aws8-0 ./model.pth /home/efs/models/"
     exit 0
 fi
 
@@ -64,12 +62,12 @@ fi
 echo ""
 
 # Parse the pod identifier to get the full pod name
-if [[ $POD_SPEC =~ ^aws([0-9]+)-([0-9]+)$ ]]; then
+if [[ $POD_SPEC =~ ^pod([0-9]+)-([0-9]+)$ ]]; then
     NODE_IDX=${BASH_REMATCH[1]}
     POD_NUM=${BASH_REMATCH[2]}
 else
-    echo "Error: Invalid pod_spec format. Use 'aws<node>-<pod_num>'"
-    echo "Example: aws0-0, aws6-1"
+    echo "Error: Invalid pod_spec format. Use 'pod<node>-<pod_num>'"
+    echo "Example: pod0-0, pod6-1"
     exit 1
 fi
 
@@ -77,31 +75,23 @@ fi
 if [ $NODE_IDX -le 5 ]; then
     # Nodes 0-5 have 8-GPU pods
     if [ $POD_NUM -eq 0 ]; then
-        FULL_POD_NAME="aws${NODE_IDX}-0-8gpus"
+        FULL_POD_NAME="pod${NODE_IDX}-0-8gpus"
     else
-        echo "Error: Node ${NODE_IDX} only has one pod (use aws${NODE_IDX}-0)"
+        echo "Error: Node ${NODE_IDX} only has one pod (use pod${NODE_IDX}-0)"
         exit 1
     fi
-elif [ $NODE_IDX -le 7 ]; then
-    # Nodes 6-7 have 4-GPU pods
+elif [ $NODE_IDX -eq 6 ]; then
+    # Node 6 has 4-GPU pods
     if [ $POD_NUM -eq 0 ]; then
-        FULL_POD_NAME="aws${NODE_IDX}-0-4gpus"
+        FULL_POD_NAME="pod${NODE_IDX}-0-4gpus"
     elif [ $POD_NUM -eq 1 ]; then
-        FULL_POD_NAME="aws${NODE_IDX}-1-4gpus"
+        FULL_POD_NAME="pod${NODE_IDX}-1-4gpus"
     else
         echo "Error: Invalid pod number for node ${NODE_IDX}. Use 0 or 1."
         exit 1
     fi
-elif [ $NODE_IDX -le 9 ]; then
-    # Nodes 8-9 are reserved 8-GPU pods
-    if [ $POD_NUM -eq 0 ]; then
-        FULL_POD_NAME="aws${NODE_IDX}-0-8gpus"
-    else
-        echo "Error: Node ${NODE_IDX} only has one pod (use aws${NODE_IDX}-0)"
-        exit 1
-    fi
 else
-    echo "Error: Node ${NODE_IDX} is not configured for GPU pods (valid nodes are 0-9)"
+    echo "Error: Node ${NODE_IDX} is not configured for GPU pods (valid nodes are 0-6)"
     exit 1
 fi
 
