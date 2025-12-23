@@ -26,11 +26,16 @@ Now we have two sets of compute, one for debugging (aws7/8/9/10) and one for run
 ## Debug
 Users should debug on aws7/8/9/10. These nodes can be connected via ssh and thus can be opened in vscode. Once finished debugging, you should move to kubernetes pods for training.
 
-You can move your data from aws to pod by using
+You can mount pod storage on aws by running the following command on **aws**:
+```bash
+sudo mount -t lustre fs-06ccace18787b2a77.fsx.us-west-2.amazonaws.com@tcp:/2hdgxb4v /path/on/aws
+```
+
+<!-- ~You can move your data from **aws** to **pod** by using~
 ```bash
 # Copy files/dirs from aws to kubernetes pods:
 bash cp_to_pod.sh $local_file_or_dir $pod_file_or_dir # similar to cp -r $src $dst
-```
+``` -->
 
 or downloading data from huggingface/github inside the pods (see below).
 
