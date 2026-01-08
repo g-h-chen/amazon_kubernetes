@@ -19,13 +19,15 @@ NGPU=$2
 
 # Node mapping (0-7)
 NODES=(
-    "ip-172-31-129-163.us-west-2.compute.internal"
-    "ip-172-31-130-216.us-west-2.compute.internal"
-    "ip-172-31-131-175.us-west-2.compute.internal"
-    "ip-172-31-136-213.us-west-2.compute.internal"
-    "ip-172-31-144-249.us-west-2.compute.internal"
-    "ip-172-31-150-2.us-west-2.compute.internal"
-    "ip-172-31-159-22.us-west-2.compute.internal"
+    "ip-172-31-135-245.us-west-2.compute.internal" # 0
+    # "ip-172-31-135-245.us-west-2.compute.internal" # 1
+    # "ip-172-31-131-175.us-west-2.compute.internal" # 2
+    # "ip-172-31-130-216.us-west-2.compute.internal"
+    # "ip-172-31-136-213.us-west-2.compute.internal" # 3
+    "ip-172-31-144-249.us-west-2.compute.internal" # 4
+    # "ip-172-31-150-2.us-west-2.compute.internal" # 5
+    "ip-172-31-147-156.us-west-2.compute.internal" # 6
+    # "ip-172-31-159-22.us-west-2.compute.internal" # no gpu
 )
 
 # Parse pod_spec
@@ -43,28 +45,28 @@ if [ $NODE_IDX -lt 0 ] || [ $NODE_IDX -ge ${#NODES[@]} ]; then
 fi
 
 # Validate NGPU and POD_IDX based on NODE_IDX
-LAST_NODE_IDX=$((${#NODES[@]} - 1))
-if [ $NODE_IDX -eq $LAST_NODE_IDX ]; then
-    # Last node is a 4-GPU node
-    if [ $NGPU -ne 4 ]; then
-        echo "Error: Node $NODE_IDX only supports 4-GPU pods."
-        exit 1
-    fi
-    if [ $POD_IDX -ne 0 ] && [ $POD_IDX -ne 1 ]; then
-        echo "Error: For 4-GPU pods on node $NODE_IDX, pod_idx must be 0 or 1."
-        exit 1
-    fi
-else
-    # Other nodes are 8-GPU nodes
-    if [ $NGPU -ne 8 ]; then
-        echo "Error: Node $NODE_IDX only supports 8-GPU pods."
-        exit 1
-    fi
-    if [ $POD_IDX -ne 0 ]; then
-        echo "Error: For 8-GPU pods on node $NODE_IDX, pod_idx must be 0."
-        exit 1
-    fi
-fi
+# LAST_NODE_IDX=$((${#NODES[@]} - 1))
+# if [ $NODE_IDX -eq $LAST_NODE_IDX ]; then
+#     # Last node is a 4-GPU node
+#     if [ $NGPU -ne 6 ]; then
+#         echo "Error: Node $NODE_IDX only supports 4-GPU pods."
+#         exit 1
+#     fi
+#     if [ $POD_IDX -ne 0 ] && [ $POD_IDX -ne 1 ]; then
+#         echo "Error: For 4-GPU pods on node $NODE_IDX, pod_idx must be 0 or 1."
+#         exit 1
+#     fi
+# else
+#     # Other nodes are 8-GPU nodes
+#     if [ $NGPU -ne 8 ]; then
+#         echo "Error: Node $NODE_IDX only supports 8-GPU pods."
+#         exit 1
+#     fi
+#     if [ $POD_IDX -ne 0 ]; then
+#         echo "Error: For 8-GPU pods on node $NODE_IDX, pod_idx must be 0."
+#         exit 1
+#     fi
+# fi
 
 NODE_NAME=${NODES[$NODE_IDX]}
 echo "🚀 Launching $NGPU-GPU pod on node $NODE_IDX ($NODE_NAME)"

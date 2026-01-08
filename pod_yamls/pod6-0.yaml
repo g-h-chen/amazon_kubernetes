@@ -5,10 +5,10 @@ metadata:
   labels:
     app: gpu-workstation
     node-idx: "6"
-    gpu-count: "4"
+    gpu-count: "8"
 spec:
   nodeSelector:
-    kubernetes.io/hostname: "ip-172-31-159-22.us-west-2.compute.internal"
+    kubernetes.io/hostname: "ip-172-31-147-156.us-west-2.compute.internal"
   containers:
   - name: workstation
     image: hchen403/cuda128-miniconda:py312
@@ -17,13 +17,13 @@ spec:
     args: ["-c", "sleep infinity"]
     resources:
       requests:
-        memory: "500Gi"
-        cpu: "45"
-        nvidia.com/gpu: "4"
+        memory: "1000Gi"
+        cpu: "90"
+        nvidia.com/gpu: "8"
       limits:
-        memory: "500Gi"
-        cpu: "47"
-        nvidia.com/gpu: "4"
+        memory: "1Ti"
+        cpu: "95"
+        nvidia.com/gpu: "8"
     volumeMounts:
     - name: efs-storage
       mountPath: /home
@@ -31,7 +31,7 @@ spec:
       mountPath: /dev/shm
     env:
     - name: CUDA_VISIBLE_DEVICES
-      value: "0,1,2,3"
+      value: "0,1,2,3,4,5,6,7"
     - name: PYTHONPATH
       value: "/home/efs/connect_to_cluster"
     workingDir: /home/efs/
