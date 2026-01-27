@@ -20,13 +20,13 @@ NGPU=$2
 # Node mapping (0-7)
 NODES=(
     "ip-172-31-135-245.us-west-2.compute.internal" # 0
+    "ip-172-31-144-249.us-west-2.compute.internal" # 4
+    "ip-172-31-147-156.us-west-2.compute.internal" # 6
     # "ip-172-31-135-245.us-west-2.compute.internal" # 1
     # "ip-172-31-131-175.us-west-2.compute.internal" # 2
     # "ip-172-31-130-216.us-west-2.compute.internal"
     # "ip-172-31-136-213.us-west-2.compute.internal" # 3
-    "ip-172-31-144-249.us-west-2.compute.internal" # 4
     # "ip-172-31-150-2.us-west-2.compute.internal" # 5
-    "ip-172-31-147-156.us-west-2.compute.internal" # 6
     # "ip-172-31-159-22.us-west-2.compute.internal" # no gpu
 )
 
@@ -39,10 +39,10 @@ fi
 NODE_IDX=${BASH_REMATCH[1]}
 POD_IDX=${BASH_REMATCH[2]}
 
-if [ $NODE_IDX -lt 0 ] || [ $NODE_IDX -ge ${#NODES[@]} ]; then
-    echo "Error: node_idx must be between 0 and $((${#NODES[@]} - 1))"
-    exit 1
-fi
+# if [ $NODE_IDX -lt 0 ] || [ $NODE_IDX -ge ${#NODES[@]} ]; then
+#     echo "Error: node_idx must be between 0 and $((${#NODES[@]} - 1))"
+#     exit 1
+# fi
 
 # Validate NGPU and POD_IDX based on NODE_IDX
 # LAST_NODE_IDX=$((${#NODES[@]} - 1))
